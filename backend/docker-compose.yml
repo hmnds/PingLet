@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_USER: pinglet
+      POSTGRES_PASSWORD: pinglet
+      POSTGRES_DB: pinglet
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pinglet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://pinglet:pinglet@db:5432/pinglet
+      X_API_BEARER_TOKEN: ${X_API_BEARER_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      POLLING_INTERVAL_MINUTES: ${POLLING_INTERVAL_MINUTES:-15}
+      DIGEST_TIME: ${DIGEST_TIME:-09:00}
+      TIMEZONE: ${TIMEZONE:-America/New_York}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4-turbo-preview}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      DATABASE_URL: postgresql://pinglet:pinglet@db:5432/pinglet
+      X_API_BEARER_TOKEN: ${X_API_BEARER_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      POLLING_INTERVAL_MINUTES: ${POLLING_INTERVAL_MINUTES:-15}
+      DIGEST_TIME: ${DIGEST_TIME:-09:00}
+      TIMEZONE: ${TIMEZONE:-America/New_York}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4-turbo-preview}
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
