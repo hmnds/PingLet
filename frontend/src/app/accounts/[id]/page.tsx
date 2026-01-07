@@ -126,3 +126,4 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
   );
 }
 
+

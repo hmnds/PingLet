@@ -1,5 +1,5 @@
 """Ingestion service for fetching and storing posts from X API."""
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import structlog
@@ -10,12 +10,73 @@ from app.schemas import XPost
 logger = structlog.get_logger()
 
 
+from app.services.embeddings import EmbeddingsService
+
 class IngestionService:
     """Service for ingesting posts from X API."""
 
-    def __init__(self, x_client: XClient, db: Session):
+    def __init__(self, x_client: XClient, db: Session, embeddings_service: Optional[EmbeddingsService] = None):
         self.x_client = x_client
         self.db = db
+        self.embeddings_service = embeddings_service or EmbeddingsService()
+
+    # ... (ingest_all_accounts and ingest_account remain same)
+
+    def _store_posts(self, posts: List[XPost], account_id: int) -> int:
+        """Store posts in database with deduplication."""
+        stored_count = 0
+        
+        # Prepare batch texts for embedding if service is available
+        if self.embeddings_service:
+            # Only embed posts that we are about to store (checking duplicates first would be better efficiency but harder to batch)
+            # For simplicity, we'll embed one by one or we could filter first. 
+            # Let's filter duplicates first in memory using existing DB check
+            pass
+
+        for post in posts:
+            # Check if post already exists
+            existing = (
+                self.db.query(Post)
+                .filter(Post.x_post_id == post.id)
+                .first()
+            )
+            
+            if existing:
+                continue  # Skip duplicate
+            
+            # Generate embedding
+            embedding = None
+            if self.embeddings_service:
+                try:
+                    embedding = self.embeddings_service.embed_text(post.text)
+                except Exception as e:
+                    logger.error("Failed to generate embedding during ingestion", error=str(e))
+
+            # Create new post
+            db_post = Post(
+                x_post_id=post.id,
+                author_id=account_id,
+                created_at=post.created_at,
+                text=post.text,
+                url=post.url,
+                raw_json=post.raw_json,
+                embedding=embedding,
+            )
+            
+            try:
+                self.db.add(db_post)
+                self.db.commit()
+                stored_count += 1
+            except IntegrityError:
+                self.db.rollback()
+                logger.warning("Post already exists (race condition)", x_post_id=post.id)
+                continue
+            except Exception as e:
+                self.db.rollback()
+                logger.error("Failed to store post", x_post_id=post.id, error=str(e))
+                raise
+
+        return stored_count
 
     def ingest_all_accounts(self) -> dict:
         """
@@ -94,54 +155,7 @@ class IngestionService:
             "posts_stored": stored_count,
         }
 
-    def _store_posts(self, posts: List[XPost], account_id: int) -> int:
-        """
-        Store posts in database with deduplication.
-        
-        Args:
-            posts: List of XPost objects
-            account_id: ID of the author account
-            
-        Returns:
-            Number of posts actually stored (after deduplication)
-        """
-        stored_count = 0
-        
-        for post in posts:
-            # Check if post already exists
-            existing = (
-                self.db.query(Post)
-                .filter(Post.x_post_id == post.id)
-                .first()
-            )
-            
-            if existing:
-                continue  # Skip duplicate
-            
-            # Create new post
-            db_post = Post(
-                x_post_id=post.id,
-                author_id=account_id,
-                created_at=post.created_at,
-                text=post.text,
-                url=post.url,
-                raw_json=post.raw_json,
-            )
-            
-            try:
-                self.db.add(db_post)
-                self.db.commit()
-                stored_count += 1
-            except IntegrityError:
-                # Race condition: post was inserted by another process
-                self.db.rollback()
-                logger.warning("Post already exists (race condition)", x_post_id=post.id)
-                continue
-            except Exception as e:
-                self.db.rollback()
-                logger.error("Failed to store post", x_post_id=post.id, error=str(e))
-                raise
+from typing import List, Optional
 
-        return stored_count
 
 

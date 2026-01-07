@@ -37,3 +37,4 @@ export function AlertCard({ alert }: AlertCardProps) {
   );
 }
 
+

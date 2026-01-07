@@ -22,47 +22,53 @@ export function RecentAlerts() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Alerts</CardTitle>
+    <Card className="glass-card flex flex-col h-full">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold text-slate-800">Recent Alerts</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {!alerts || alerts.length === 0 ? (
-          <p className="text-gray-500">No alerts yet</p>
+          <div className="text-center py-8 text-slate-500 bg-slate-50/50 rounded-xl border border-slate-100">
+            <p>No alerts triggered yet</p>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {alerts.map((alert) => (
-              <div key={alert.id} className="border-b border-gray-200 pb-4 last:border-0">
+              <div key={alert.id} className="group p-3 rounded-xl bg-white/50 border border-slate-100 hover:border-indigo-100 transition-colors">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        Rule #{alert.rule_id}
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold">
+                        #{alert.rule_id}
                       </span>
-                      <span className="text-xs text-gray-500">•</span>
-                      <span className="text-xs text-gray-500">{alert.trigger_type}</span>
+                      <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full capitalize">
+                        {alert.trigger_type}
+                      </span>
                       {alert.score && (
-                        <>
-                          <span className="text-xs text-gray-500">•</span>
-                          <span className="text-xs text-gray-500">Score: {alert.score.toFixed(2)}</span>
-                        </>
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                          {(alert.score * 100).toFixed(0)}% Match
+                        </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{formatRelativeTime(alert.sent_at)}</p>
+                    <p className="text-xs text-slate-400 pl-8">{formatRelativeTime(alert.sent_at)}</p>
                   </div>
                 </div>
               </div>
             ))}
-            <Link
-              href="/alerts"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              View all alerts →
-            </Link>
+            <div className="pt-2">
+              <Link
+                href="/alerts"
+                className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors group"
+              >
+                View all alerts
+                <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
+              </Link>
+            </div>
           </div>
         )}
       </CardContent>
     </Card>
   );
 }
+
 

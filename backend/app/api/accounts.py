@@ -2,6 +2,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import structlog
 from app.database import get_db
 from app.models import MonitoredAccount
 from app.schemas import (
@@ -9,13 +10,19 @@ from app.schemas import (
     MonitoredAccountUpdate,
     MonitoredAccountResponse,
 )
-from app.services.x_client import XClient, RealXClient
+from app.config import settings
+from app.services.x_client import XClient, RealXClient, MockXClient
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
 def get_x_client() -> XClient:
-    """Dependency to get X client (can be swapped for FakeXClient in tests)."""
+    """Dependency to get X client."""
+    if not settings.x_api_bearer_token or settings.x_api_bearer_token == "your_x_api_bearer_token_here":
+        logger.warning("Using MockXClient due to missing X API bearer token")
+        return MockXClient()
     return RealXClient()
 
 
@@ -32,9 +39,21 @@ def create_account(
         raise HTTPException(status_code=400, detail="Username already exists")
     
     # Resolve username to x_user_id
-    x_user_id = x_client.resolve_username(account.username)
-    if not x_user_id:
-        raise HTTPException(status_code=404, detail="Username not found on X")
+    try:
+        logger.info("Attempting to resolve username", username=account.username)
+        x_user_id = x_client.resolve_username(account.username)
+        if not x_user_id:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Username '{account.username}' not found on X. Please verify the username is correct."
+            )
+        logger.info("Successfully resolved username", username=account.username, x_user_id=x_user_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Return the actual error message
+        logger.error("Error resolving username", username=account.username, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     
     db_account = MonitoredAccount(
         username=account.username,
@@ -97,13 +116,37 @@ def resolve_account(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     
-    x_user_id = x_client.resolve_username(account.username)
-    if not x_user_id:
-        raise HTTPException(status_code=404, detail="Username not found on X")
+    try:
+        logger.info("Attempting to resolve username", username=account.username)
+        x_user_id = x_client.resolve_username(account.username)
+        if not x_user_id:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Username '{account.username}' not found on X. Please verify the username is correct."
+            )
+        logger.info("Successfully resolved username", username=account.username, x_user_id=x_user_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error resolving username", username=account.username, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     
     account.x_user_id = x_user_id
     db.commit()
     db.refresh(account)
     return account
+
+
+@router.delete("/{account_id}", status_code=204)
+def delete_account(account_id: int, db: Session = Depends(get_db)):
+    """Delete a monitored account."""
+    account = db.query(MonitoredAccount).filter(MonitoredAccount.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    db.delete(account)
+    db.commit()
+
+
 
 

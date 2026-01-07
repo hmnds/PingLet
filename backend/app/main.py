@@ -1,5 +1,6 @@
 import structlog
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 # Configure structured logging
@@ -25,8 +26,18 @@ logger = structlog.get_logger()
 
 app = FastAPI(title="PingLet API", version="0.1.0")
 
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For development; strict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include routers
-from app.api import accounts, ingestion, rules, alerts, topics, digests, search, chat
+from app.api import accounts, ingestion, rules, alerts, topics, digests, search, chat, auth
+app.include_router(auth.router)
 app.include_router(accounts.router)
 app.include_router(ingestion.router)
 app.include_router(rules.router)

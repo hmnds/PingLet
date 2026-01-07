@@ -54,3 +54,4 @@ export function SearchResults({ results, query }: SearchResultsProps) {
   );
 }
 
+

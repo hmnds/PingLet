@@ -37,3 +37,4 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
   );
 }
 
+

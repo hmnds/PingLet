@@ -30,12 +30,15 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <nav className="glass sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
-            <Link href="/" className="flex items-center">
-              <span className="text-xl font-bold text-gray-900">PingLet</span>
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg group-hover:scale-105 transition-transform">
+                P
+              </div>
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700">PingLet</span>
             </Link>
             <div className="hidden md:ml-10 md:flex md:space-x-8">
               {navLinks.map((link) => (
@@ -43,10 +46,10 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors",
+                    "inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-200",
                     pathname === link.href
-                      ? "border-blue-500 text-gray-900"
-                      : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                      ? "border-indigo-500 text-indigo-600"
+                      : "border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700"
                   )}
                 >
                   {link.label}

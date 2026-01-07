@@ -8,15 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth/context";
-import Link from "next/link";
 
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-  username: z.string().optional(),
+  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: "Passwords do not match",
   path: ["confirmPassword"],
 });
 
@@ -39,7 +37,7 @@ export function RegisterForm() {
     try {
       setError(null);
       setIsLoading(true);
-      await registerUser(data.email, data.password, data.username);
+      await registerUser(data.email, data.password);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to register. Please try again.");
     } finally {
@@ -50,7 +48,7 @@ export function RegisterForm() {
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>Create an account</CardTitle>
+        <CardTitle>Create an Account</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -72,21 +70,6 @@ export function RegisterForm() {
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Username (optional)
-            </label>
-            <Input
-              id="username"
-              type="text"
-              {...register("username")}
-              placeholder="johndoe"
-            />
-            {errors.username && (
-              <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
             )}
           </div>
 
@@ -121,18 +104,19 @@ export function RegisterForm() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Register"}
+            {isLoading ? "Creating Account..." : "Create Account"}
           </Button>
 
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{" "}
-            <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+          <div className="text-center mt-4">
+            <span className="text-sm text-gray-600">Already have an account? </span>
+            <Button variant="ghost" className="p-0 h-auto font-normal text-indigo-600 hover:bg-transparent hover:text-indigo-700" onClick={() => window.location.href = '/login'}>
               Login
-            </Link>
-          </p>
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
   );
 }
+
 

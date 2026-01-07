@@ -42,3 +42,4 @@ export function MessageBubble({ message, citations, isUser }: MessageBubbleProps
   );
 }
 
+

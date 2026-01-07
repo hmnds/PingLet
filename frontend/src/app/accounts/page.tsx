@@ -15,8 +15,10 @@ export default function AccountsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Monitored Accounts</h1>
-            <p className="text-gray-600 mt-2">Manage accounts you want to monitor</p>
+            <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 pb-2">
+              Monitored Accounts
+            </h1>
+            <p className="text-lg text-slate-600">Manage accounts you want to monitor</p>
           </div>
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -31,4 +33,5 @@ export default function AccountsPage() {
     </Layout>
   );
 }
+
 

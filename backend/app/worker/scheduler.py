@@ -7,7 +7,7 @@ import structlog
 from app.config import settings
 from app.database import SessionLocal, engine
 from app.services.ingestion import IngestionService
-from app.services.x_client import RealXClient
+from app.services.x_client import RealXClient, MockXClient
 from app.services.alerts import AlertEngine
 from app.services.embeddings import EmbeddingsService
 from app.services.llm import LLMService
@@ -23,7 +23,11 @@ def run_ingestion_job():
     logger.info("Starting ingestion job")
     db = SessionLocal()
     try:
-        x_client = RealXClient()
+        if not settings.x_api_bearer_token or settings.x_api_bearer_token == "your_x_api_bearer_token_here":
+            logger.warning("Using MockXClient for ingestion job due to missing X API bearer token")
+            x_client = MockXClient()
+        else:
+            x_client = RealXClient()
         service = IngestionService(x_client, db)
         result = service.ingest_all_accounts()
         

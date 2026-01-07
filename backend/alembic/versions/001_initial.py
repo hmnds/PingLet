@@ -167,3 +167,4 @@ def downgrade() -> None:
     op.execute('DROP EXTENSION IF EXISTS vector')
 
 
+

@@ -89,3 +89,4 @@ export default function RuleDetailPage({ params }: { params: Promise<{ id: strin
   );
 }
 
+

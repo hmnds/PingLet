@@ -1,6 +1,6 @@
 """Daily digest generation service."""
 from datetime import datetime, timedelta, date
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 import structlog
 from app.models import MonitoredAccount, Post, Digest
@@ -97,5 +97,6 @@ class DigestService:
             logger.error("Failed to send digest", error=str(e), digest_id=digest.id)
         
         return digest
+
 
 

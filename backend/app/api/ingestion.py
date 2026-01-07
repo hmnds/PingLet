@@ -3,13 +3,16 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.ingestion import IngestionService
-from app.services.x_client import XClient, RealXClient
+from app.config import settings
+from app.services.x_client import XClient, RealXClient, MockXClient
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
 
 def get_x_client() -> XClient:
     """Dependency to get X client."""
+    if not settings.x_api_bearer_token or settings.x_api_bearer_token == "your_x_api_bearer_token_here":
+        return MockXClient()
     return RealXClient()
 
 
@@ -22,5 +25,6 @@ def run_ingestion(
     service = IngestionService(x_client, db)
     result = service.ingest_all_accounts()
     return result
+
 
 

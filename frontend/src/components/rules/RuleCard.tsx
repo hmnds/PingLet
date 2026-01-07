@@ -48,3 +48,4 @@ export function RuleCard({ rule }: RuleCardProps) {
   );
 }
 
+

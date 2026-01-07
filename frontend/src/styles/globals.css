@@ -1,3 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  --color-primary: #6366f1;
+  --color-primary-foreground: #ffffff;
+  
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  background: radial-gradient(circle at top left, #e0e7ff 0%, #f3e8ff 40%, #ffffff 100%);
+  min-height: 100vh;
+}
+
+/* Glassmorphism utilities */
+.glass {
+  @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl;
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-md border border-white/50 shadow-lg rounded-2xl;
+}
+

@@ -17,9 +17,11 @@ export default function DashboardPage() {
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-2">Overview of your PingLet account</p>
+        <div className="mb-10">
+          <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 pb-2">
+            Dashboard
+          </h1>
+          <p className="text-lg text-slate-600">Overview of your PingLet account</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

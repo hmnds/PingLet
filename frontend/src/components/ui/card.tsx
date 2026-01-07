@@ -6,7 +6,7 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     return (
       <div
         ref={ref}
-        className={cn("rounded-lg border border-gray-200 bg-white shadow-sm", className)}
+        className={cn("bg-white/80 backdrop-blur-md border border-white/50 shadow-lg rounded-2xl transition-all duration-300 hover:shadow-xl", className)}
         {...props}
       />
     );
@@ -46,4 +46,5 @@ export const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElem
 );
 
 CardContent.displayName = "CardContent";
+
 

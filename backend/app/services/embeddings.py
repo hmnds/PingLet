@@ -78,3 +78,4 @@ class EmbeddingsService:
         return [0.0] * 1536
 
 
+
