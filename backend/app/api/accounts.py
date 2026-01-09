@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import structlog
 from app.database import get_db
-from app.models import MonitoredAccount
+from app.models import MonitoredAccount, User
 from app.schemas import (
     MonitoredAccountCreate,
     MonitoredAccountUpdate,
@@ -12,6 +12,7 @@ from app.schemas import (
 )
 from app.config import settings
 from app.services.x_client import XClient, RealXClient, MockXClient
+from app.api.deps import get_current_user
 
 logger = structlog.get_logger()
 
@@ -31,12 +32,17 @@ def create_account(
     account: MonitoredAccountCreate,
     db: Session = Depends(get_db),
     x_client: XClient = Depends(get_x_client),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new monitored account."""
-    # Check if username already exists
-    existing = db.query(MonitoredAccount).filter(MonitoredAccount.username == account.username).first()
+    # Check if username already exists FOR THIS USER
+    existing = db.query(MonitoredAccount).filter(
+        MonitoredAccount.username == account.username,
+        MonitoredAccount.user_id == current_user.id
+    ).first()
+    
     if existing:
-        raise HTTPException(status_code=400, detail="Username already exists")
+         raise HTTPException(status_code=400, detail="You are already monitoring this account")
     
     # Resolve username to x_user_id
     try:
@@ -60,6 +66,7 @@ def create_account(
         x_user_id=x_user_id,
         digest_enabled=account.digest_enabled,
         alerts_enabled=account.alerts_enabled,
+        user_id=current_user.id,
     )
     db.add(db_account)
     db.commit()
@@ -69,16 +76,26 @@ def create_account(
 
 
 @router.get("", response_model=List[MonitoredAccountResponse])
-def list_accounts(db: Session = Depends(get_db)):
-    """List all monitored accounts."""
-    accounts = db.query(MonitoredAccount).all()
+def list_accounts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all monitored accounts for the current user."""
+    accounts = db.query(MonitoredAccount).filter(MonitoredAccount.user_id == current_user.id).all()
     return accounts
 
 
 @router.get("/{account_id}", response_model=MonitoredAccountResponse)
-def get_account(account_id: int, db: Session = Depends(get_db)):
+def get_account(
+    account_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get a specific monitored account."""
-    account = db.query(MonitoredAccount).filter(MonitoredAccount.id == account_id).first()
+    account = db.query(MonitoredAccount).filter(
+        MonitoredAccount.id == account_id,
+        MonitoredAccount.user_id == current_user.id
+    ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     return account
@@ -89,9 +106,13 @@ def update_account(
     account_id: int,
     update: MonitoredAccountUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update a monitored account."""
-    account = db.query(MonitoredAccount).filter(MonitoredAccount.id == account_id).first()
+    account = db.query(MonitoredAccount).filter(
+        MonitoredAccount.id == account_id,
+        MonitoredAccount.user_id == current_user.id
+    ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     
@@ -110,9 +131,13 @@ def resolve_account(
     account_id: int,
     db: Session = Depends(get_db),
     x_client: XClient = Depends(get_x_client),
+    current_user: User = Depends(get_current_user),
 ):
     """Resolve username to x_user_id and update account."""
-    account = db.query(MonitoredAccount).filter(MonitoredAccount.id == account_id).first()
+    account = db.query(MonitoredAccount).filter(
+        MonitoredAccount.id == account_id,
+        MonitoredAccount.user_id == current_user.id
+    ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     
@@ -138,9 +163,16 @@ def resolve_account(
 
 
 @router.delete("/{account_id}", status_code=204)
-def delete_account(account_id: int, db: Session = Depends(get_db)):
+def delete_account(
+    account_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Delete a monitored account."""
-    account = db.query(MonitoredAccount).filter(MonitoredAccount.id == account_id).first()
+    account = db.query(MonitoredAccount).filter(
+        MonitoredAccount.id == account_id,
+        MonitoredAccount.user_id == current_user.id
+    ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     

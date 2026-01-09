@@ -50,6 +50,15 @@ class AlertEngine:
         Returns:
             Dict with alert info if triggered, None otherwise
         """
+        # Enforce multi-tenancy: Rule owner must match Post's MonitoredAccount owner
+        # We assume post.author is loaded or lazy loads
+        if not post.author:
+             # Should not happen if foreign key valid, but safe check
+             return None
+             
+        if rule.user_id != post.author.user_id:
+            return None
+
         # Check author allowlist
         if rule.allowed_author_ids:
             if post.author_id not in rule.allowed_author_ids:

@@ -156,7 +156,11 @@ class RealXClient(XClient):
             }
             
             if since_id:
-                params["since_id"] = since_id
+                # Ensure since_id is valid (numeric for Twitter API)
+                if str(since_id).isdigit():
+                    params["since_id"] = since_id
+                else:
+                    logger.warning("Ignoring invalid since_id (likely from mock)", since_id=since_id)
             
             response = self.client.get(
                 f"{self.BASE_URL}/users/{x_user_id}/tweets",

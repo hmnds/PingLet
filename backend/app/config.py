@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     llm_model: str = "gpt-4-turbo-preview"
 
+    # Security
+    secret_key: str = "your-secret-key-should-be-changed-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+
 
 # Global settings instance
 settings = Settings()

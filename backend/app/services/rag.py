@@ -18,12 +18,13 @@ class RAGService:
         self.embeddings_service = embeddings_service
         self.llm_service = llm_service
 
-    def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search(self, query: str, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Search posts using vector similarity.
+        Search posts using vector similarity for a specific user.
         
         Args:
             query: Search query text
+            user_id: User ID to filter posts by
             limit: Maximum number of results
             
         Returns:
@@ -42,11 +43,12 @@ class RAGService:
         
         sql = text("""
             SELECT 
-                id, x_post_id, author_id, created_at, text, url,
-                1 - (embedding <=> :query_embedding::vector) as similarity
-            FROM posts
-            WHERE embedding IS NOT NULL
-            ORDER BY embedding <=> :query_embedding::vector
+                p.id, p.x_post_id, p.author_id, p.created_at, p.text, p.url,
+                1 - (p.embedding <=> :query_embedding::vector) as similarity
+            FROM posts p
+            JOIN monitored_accounts m ON p.author_id = m.id
+            WHERE p.embedding IS NOT NULL AND m.user_id = :user_id
+            ORDER BY p.embedding <=> :query_embedding::vector
             LIMIT :limit
         """)
         
@@ -54,6 +56,7 @@ class RAGService:
             sql,
             {
                 "query_embedding": vector_str,
+                "user_id": user_id,
                 "limit": limit,
             }
         )
@@ -72,19 +75,20 @@ class RAGService:
         
         return posts
 
-    def chat(self, question: str, limit: int = 10) -> Dict[str, Any]:
+    def chat(self, question: str, user_id: int, limit: int = 10) -> Dict[str, Any]:
         """
         Answer a question using RAG with citations.
         
         Args:
             question: User question
+            user_id: User ID to filter posts by
             limit: Maximum number of posts to retrieve
             
         Returns:
             Dict with answer, citations, and retrieved posts
         """
-        # Search for relevant posts
-        posts = self.search(question, limit=limit)
+        # Search for relevant posts within user's scope
+        posts = self.search(question, user_id, limit=limit)
         
         if not posts:
             return {

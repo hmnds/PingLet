@@ -3,12 +3,13 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import AlertRule
+from app.models import AlertRule, User
 from app.schemas import (
     AlertRuleCreate,
     AlertRuleUpdate,
     AlertRuleResponse,
 )
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/rules", tags=["rules"])
 
@@ -17,10 +18,14 @@ router = APIRouter(prefix="/rules", tags=["rules"])
 def create_rule(
     rule: AlertRuleCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new alert rule."""
-    # Check if name already exists
-    existing = db.query(AlertRule).filter(AlertRule.name == rule.name).first()
+    # Check if name already exists for this user
+    existing = db.query(AlertRule).filter(
+        AlertRule.name == rule.name,
+        AlertRule.user_id == current_user.id
+    ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Rule name already exists")
     
@@ -33,6 +38,7 @@ def create_rule(
         similarity_threshold=rule.similarity_threshold,
         cooldown_minutes=rule.cooldown_minutes,
         channel=rule.channel,
+        user_id=current_user.id,
     )
     db.add(db_rule)
     db.commit()
@@ -42,16 +48,26 @@ def create_rule(
 
 
 @router.get("", response_model=List[AlertRuleResponse])
-def list_rules(db: Session = Depends(get_db)):
-    """List all alert rules."""
-    rules = db.query(AlertRule).all()
+def list_rules(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all alert rules for the current user."""
+    rules = db.query(AlertRule).filter(AlertRule.user_id == current_user.id).all()
     return rules
 
 
 @router.get("/{rule_id}", response_model=AlertRuleResponse)
-def get_rule(rule_id: int, db: Session = Depends(get_db)):
+def get_rule(
+    rule_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get a specific alert rule."""
-    rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
+    rule = db.query(AlertRule).filter(
+        AlertRule.id == rule_id,
+        AlertRule.user_id == current_user.id
+    ).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     return rule
@@ -62,9 +78,13 @@ def update_rule(
     rule_id: int,
     update: AlertRuleUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an alert rule."""
-    rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
+    rule = db.query(AlertRule).filter(
+        AlertRule.id == rule_id,
+        AlertRule.user_id == current_user.id
+    ).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     
@@ -79,9 +99,16 @@ def update_rule(
 
 
 @router.delete("/{rule_id}", status_code=204)
-def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+def delete_rule(
+    rule_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Delete an alert rule."""
-    rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
+    rule = db.query(AlertRule).filter(
+        AlertRule.id == rule_id,
+        AlertRule.user_id == current_user.id
+    ).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     

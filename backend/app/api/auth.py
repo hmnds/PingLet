@@ -6,26 +6,21 @@ from app.models import User
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
 from typing import Optional
+from app.api.deps import get_current_user
+from app.core.security import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 class UserCreate(BaseModel):
     email: EmailStr
+    username: str
     password: str
 
-class UserResponse(BaseModel):
-    id: int
-    email: str
-    is_active: bool
-
-    class Config:
-        from_attributes = True
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
 
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -33,32 +28,31 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    db_user_by_name = db.query(User).filter(User.username == user.username).first()
+    if db_user_by_name:
+        raise HTTPException(status_code=400, detail="Username already taken")
+    
     hashed_password = pwd_context.hash(user.password)
-    new_user = User(email=user.email, hashed_password=hashed_password)
+    new_user = User(email=user.email, username=user.username, hashed_password=hashed_password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return {"access_token": "fake-jwt-token", "token_type": "bearer", "user": {"email": new_user.email, "id": new_user.id}}
+    token = create_access_token(new_user.id)
+    return {"access_token": token, "token_type": "bearer", "user": {"email": new_user.email, "username": new_user.username, "id": new_user.id}}
 
 @router.post("/login")
-def login(user: UserCreate, db: Session = Depends(get_db)):
+def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not pwd_context.verify(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # In a real app, generate JWT token here
-    # For now, simplistic return
-    return {"access_token": "fake-jwt-token", "token_type": "bearer", "user": {"email": db_user.email, "id": db_user.id}}
+    token = create_access_token(db_user.id)
+    return {"access_token": token, "token_type": "bearer", "user": {"email": db_user.email, "username": db_user.username, "id": db_user.id}}
+
 @router.get("/me")
-def me(db: Session = Depends(get_db)):
-    # In real app, decode token and find user. 
-    # For now, return first user or dummy.
-    # We are using "fake-jwt-token" so we can't decode it. 
-    # Just returning the latest user for demo.
-    db_user = db.query(User).order_by(User.id.desc()).first()
-    if not db_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return {"email": db_user.email, "id": db_user.id}
+# Use dependency to get current user instead of dummy logic
+def me(current_user: User = Depends(get_current_user)):
+    return {"email": current_user.email, "username": current_user.username, "id": current_user.id}
 @router.post("/logout")
 def logout():
     return {"message": "Logged out"}

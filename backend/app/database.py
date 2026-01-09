@@ -1,6 +1,6 @@
 """Database connection and session management."""
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config import settings
 
 # Base class for models
@@ -15,9 +15,7 @@ engine = create_engine(
 )
 
 # Create session factory
-SessionLocal = scoped_session(
-    sessionmaker(autocommit=False, autoflush=False, bind=engine)
-)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db():

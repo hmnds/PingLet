@@ -3,8 +3,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import AlertLog
+from app.models import AlertLog, AlertRule, User
 from app.schemas import AlertLogResponse
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -15,9 +16,10 @@ def list_alerts(
     offset: int = Query(default=0, ge=0),
     rule_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """List alert logs."""
-    query = db.query(AlertLog)
+    """List alert logs for the current user."""
+    query = db.query(AlertLog).join(AlertLog.rule).filter(AlertRule.user_id == current_user.id)
     
     if rule_id:
         query = query.filter(AlertLog.rule_id == rule_id)

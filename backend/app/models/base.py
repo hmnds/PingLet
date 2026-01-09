@@ -7,21 +7,29 @@ from pgvector.sqlalchemy import Vector
 from app.database import Base
 
 
+from sqlalchemy import UniqueConstraint
+
 class MonitoredAccount(Base):
     """Monitored X (Twitter) account."""
     __tablename__ = "monitored_accounts"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(255), nullable=False, unique=True, index=True)
+    username = Column(String(255), nullable=False, unique=False, index=True)
     x_user_id = Column(String(255), nullable=True, index=True)
     digest_enabled = Column(Boolean, default=True, nullable=False)
     alerts_enabled = Column(Boolean, default=True, nullable=False)
     last_seen_post_id = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     # Relationships
+    user = relationship("User", back_populates="monitored_accounts")
     posts = relationship("Post", back_populates="author")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'username', name='uix_user_username'),
+    )
 
 
 class Post(Base):
@@ -29,7 +37,7 @@ class Post(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    x_post_id = Column(String(255), nullable=False, unique=True, index=True)
+    x_post_id = Column(String(255), nullable=False, unique=False, index=True)
     author_id = Column(Integer, ForeignKey("monitored_accounts.id"), nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, index=True)
     text = Column(Text, nullable=False)
@@ -42,18 +50,25 @@ class Post(Base):
     author = relationship("MonitoredAccount", back_populates="posts")
     alert_logs = relationship("AlertLog", back_populates="post")
 
+    __table_args__ = (
+        UniqueConstraint('author_id', 'x_post_id', name='uix_author_xpostid'),
+    )
+
 
 class Topic(Base):
     """Topic for semantic matching."""
     __tablename__ = "topics"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False, unique=False, index=True)
     description = Column(Text, nullable=False)
     embedding = Column(Vector(1536), nullable=True)
     threshold = Column(Float, default=0.7, nullable=False)  # Cosine similarity threshold
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="topics")
 
 
 class AlertRule(Base):
@@ -61,7 +76,8 @@ class AlertRule(Base):
     __tablename__ = "alert_rules"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False, unique=False, index=True)
     enabled = Column(Boolean, default=True, nullable=False)
     keywords = Column(JSON, nullable=True)  # List of strings
     topic_ids = Column(JSON, nullable=True)  # List of topic IDs
@@ -73,6 +89,7 @@ class AlertRule(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
+    user = relationship("User", back_populates="alert_rules")
     alert_logs = relationship("AlertLog", back_populates="rule")
 
 
@@ -98,18 +115,24 @@ class Digest(Base):
     __tablename__ = "digests"
 
     id = Column(Integer, primary_key=True, index=True)
-    digest_date = Column(Date, nullable=False, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    digest_date = Column(Date, nullable=False, unique=False, index=True)
     content_markdown = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    user = relationship("User", back_populates="digests")
+
 
 class Setting(Base):
-    """Application settings (single-user MVP)."""
+    """Application settings (multi-tenant)."""
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True, index=True)
-    key = Column(String(255), nullable=False, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    key = Column(String(255), nullable=False, unique=False, index=True)
     value = Column(JSON, nullable=False)  # Can store any JSON value
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="settings")
 
 

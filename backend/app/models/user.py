@@ -10,10 +10,15 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
+    username = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Future relationships can be added here, e.g., accounts owned by this user
-    # monitored_accounts = relationship("MonitoredAccount", back_populates="owner")
+    # Relationships
+    monitored_accounts = relationship("MonitoredAccount", back_populates="user")
+    alert_rules = relationship("AlertRule", back_populates="user")
+    topics = relationship("Topic", back_populates="user")
+    digests = relationship("Digest", back_populates="user")
+    settings = relationship("Setting", back_populates="user")

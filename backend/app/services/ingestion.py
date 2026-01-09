@@ -34,10 +34,13 @@ class IngestionService:
             pass
 
         for post in posts:
-            # Check if post already exists
+            # Check if post already exists FOR THIS ACCOUNT
             existing = (
                 self.db.query(Post)
-                .filter(Post.x_post_id == post.id)
+                .filter(
+                    Post.x_post_id == post.id,
+                    Post.author_id == account_id
+                )
                 .first()
             )
             
@@ -86,6 +89,36 @@ class IngestionService:
             dict with stats: accounts_processed, posts_fetched, posts_stored, errors
         """
         accounts = self.db.query(MonitoredAccount).all()
+        stats = {
+            "accounts_processed": 0,
+            "posts_fetched": 0,
+            "posts_stored": 0,
+            "errors": [],
+        }
+
+        for account in accounts:
+            try:
+                result = self.ingest_account(account.id)
+                stats["accounts_processed"] += 1
+                stats["posts_fetched"] += result["posts_fetched"]
+                stats["posts_stored"] += result["posts_stored"]
+            except Exception as e:
+                logger.error("Failed to ingest account", account_id=account.id, error=str(e))
+                stats["errors"].append({"account_id": account.id, "error": str(e)})
+
+        return stats
+
+    def ingest_user_accounts(self, user_id: int) -> dict:
+        """
+        Ingest new posts for monitored accounts owned by a specific user.
+        
+        Args:
+            user_id: ID of the user
+            
+        Returns:
+            dict with stats
+        """
+        accounts = self.db.query(MonitoredAccount).filter(MonitoredAccount.user_id == user_id).all()
         stats = {
             "accounts_processed": 0,
             "posts_fetched": 0,
