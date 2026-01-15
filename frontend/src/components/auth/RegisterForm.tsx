@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth/context";
 
 const registerSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
@@ -37,7 +38,7 @@ export function RegisterForm() {
     try {
       setError(null);
       setIsLoading(true);
-      await registerUser(data.email, data.password);
+      await registerUser(data.email, data.password, data.username);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to register. Please try again.");
     } finally {
@@ -57,6 +58,20 @@ export function RegisterForm() {
               {error}
             </div>
           )}
+
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+              Username
+            </label>
+            <Input
+              id="username"
+              {...register("username")}
+              placeholder="johndoe"
+            />
+            {errors.username && (
+              <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+            )}
+          </div>
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">

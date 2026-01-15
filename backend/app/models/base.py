@@ -25,7 +25,7 @@ class MonitoredAccount(Base):
 
     # Relationships
     user = relationship("User", back_populates="monitored_accounts")
-    posts = relationship("Post", back_populates="author")
+    posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint('user_id', 'username', name='uix_user_username'),

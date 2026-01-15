@@ -41,14 +41,15 @@ class RAGService:
         # Format vector as string for pgvector: '[0.1,0.2,...]'
         vector_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
         
+        # Use CAST() syntax which is safer with SQLAlchemy text() than :: operator
         sql = text("""
             SELECT 
                 p.id, p.x_post_id, p.author_id, p.created_at, p.text, p.url,
-                1 - (p.embedding <=> :query_embedding::vector) as similarity
+                1 - (p.embedding <=> CAST(:query_embedding AS vector)) as similarity
             FROM posts p
             JOIN monitored_accounts m ON p.author_id = m.id
             WHERE p.embedding IS NOT NULL AND m.user_id = :user_id
-            ORDER BY p.embedding <=> :query_embedding::vector
+            ORDER BY p.embedding <=> CAST(:query_embedding AS vector)
             LIMIT :limit
         """)
         
@@ -88,40 +89,64 @@ class RAGService:
             Dict with answer, citations, and retrieved posts
         """
         # Search for relevant posts within user's scope
-        posts = self.search(question, user_id, limit=limit)
+        raw_posts = self.search(question, user_id, limit=limit)
         
-        if not posts:
-            return {
-                "answer": "I couldn't find any relevant posts to answer your question.",
-                "citations": [],
-                "posts": [],
-            }
+        # Filter posts by relevance threshold to correctly handle "normal LLM" mode
+        # If query is "hi", dot product with trading posts will be low.
+        RELEVANCE_THRESHOLD = 0.35
+        posts = [p for p in raw_posts if p.get('similarity', 0) > RELEVANCE_THRESHOLD]
+        
+        # If no relevant posts found, we proceed with empty context
+        # This effectively makes it a "normal LLM" for irrelevant queries
         
         # Build context from retrieved posts
         context_parts = []
         citations = []
         
-        for i, post in enumerate(posts, 1):
-            context_parts.append(f"[{i}] {post['text']}")
-            if post['url']:
-                citations.append({
-                    "index": i,
-                    "url": post['url'],
-                    "text_preview": post['text'][:100] + "..." if len(post['text']) > 100 else post['text'],
-                })
-        
-        context = "\n\n".join(context_parts)
-        
-        # Generate answer with citations
-        prompt = f"""Answer the following question using ONLY the information from the posts below. 
-If the answer cannot be found in the posts, say "I don't have enough information to answer this question."
+        if posts:
+            for i, post in enumerate(posts, 1):
+                context_parts.append(f"[{i}] {post['text']}")
+                if post['url']:
+                    citations.append({
+                        "index": i,
+                        "url": post['url'],
+                        "text_preview": post['text'][:100] + "..." if len(post['text']) > 100 else post['text'],
+                    })
+            context = "\n\n".join(context_parts)
+        else:
+            context = "No relevant posts found."
 
-Posts:
+                # Generate answer with citations
+        prompt = f"""You are an Expert Crypto/Stock Trading Analyst who is also a helpful assistant.
+        
+Your goal is to answer the user's question based on the social media posts below.
+
+**MODE 1: TRADE STRATEGY**
+If the user explicitly asks for a "strategy", "signal", "trade idea", or specific financial advice about a ticker (e.g., "Trade strategy for BTC", "Should I buy SOL?"), you MUST output a structured analysis in this format:
+
+## Trade Strategy: [TICKER]
+**Signal:** [LONG/SHORT/NEUTRAL]
+**Confidence:** [High/Medium/Low]
+
+*   **Entry Zone:** [Price or "Current Market Price"]
+*   **Target (TP):** [Price or "Open"]
+*   **Stop Loss (SL):** [Price or "N/A"]
+
+### Rationale
+[Brief explanation citing specific posts using [1], [2] format.]
+
+---
+**Disclaimer:** This is an AI-generated analysis based on social sentiment, not financial advice.
+
+**MODE 2: GENERAL CHAT**
+If the user asks a general question (e.g., "What are people saying about AI?", "Summarize the news", "Who is posting?"), simply answer the question clearly and concisely, citing sources with [1], [2], etc. Do NOT use the Trade Strategy format for general questions.
+
+**Posts:**
 {context}
 
-Question: {question}
+**User Question:** {question}
 
-Answer (include citation numbers like [1], [2] when referencing posts):"""
+**Answer:**"""
         
         try:
             if not self.llm_service.client:
@@ -132,12 +157,12 @@ Answer (include citation numbers like [1], [2] when referencing posts):"""
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a helpful assistant that answers questions based on provided posts. Always cite your sources using [number] format.",
+                            "content": "You are a senior financial analyst. You strictly follow the requested Markdown format. You do not hallucinate signals.",
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=500,
-                    temperature=0.3,
+                    max_tokens=800,
+                    temperature=0.2,
                 )
                 
                 answer_text = answer.choices[0].message.content.strip()

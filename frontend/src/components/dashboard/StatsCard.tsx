@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface StatsCardProps {
@@ -5,11 +6,12 @@ interface StatsCardProps {
   value: string | number;
   subtitle?: string;
   icon?: React.ReactNode;
+  href?: string;
 }
 
-export function StatsCard({ title, value, subtitle, icon }: StatsCardProps) {
-  return (
-    <Card className="glass-card hover:scale-[1.02] transition-transform">
+export function StatsCard({ title, value, subtitle, icon, href }: StatsCardProps) {
+  const content = (
+    <Card className="glass-card hover:scale-[1.02] transition-transform h-full">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -28,6 +30,16 @@ export function StatsCard({ title, value, subtitle, icon }: StatsCardProps) {
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full cursor-pointer">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }
 
 

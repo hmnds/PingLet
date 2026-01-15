@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { digestsApi } from "@/lib/api/digests";
 
+export function useDigests() {
+  return useQuery({
+    queryKey: ["digests", "list"],
+    queryFn: () => digestsApi.list(),
+  });
+}
+
 export function useLatestDigest() {
   return useQuery({
     queryKey: ["digests", "latest"],
